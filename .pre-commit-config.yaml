@@ -13,13 +13,13 @@ repos:
         language: system
         pass_filenames: false
         always_run: true
-      # - id: test
-      #   name: pytest
-      #   description: Runs the pytest suite for this project
-      #   entry: poetry run poe test
-      #   language: system
-      #   pass_filenames: false
-      #   always_run: true
+      - id: test
+        name: pytest
+        description: Runs the pytest suite for this project
+        entry: poetry run poe test
+        language: system
+        pass_filenames: false
+        always_run: true
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v4.5.0
     hooks:

@@ -9,6 +9,8 @@ readme = "README.md"
 python = "^3.12"
 requests = "^2.32.3"
 pydantic = "^2.8.2"
+fastapi = "^0.112.1"
+sqlalchemy = "^2.0.32"
 
 [tool.poetry.group.test.dependencies]
 coverage = { version = "^7.3.2", extras = ["toml"] }
@@ -31,7 +33,7 @@ test-cov = [
     { cmd = "coverage html" },
 ]
 
-lint-typing = "mypy --install-types --non-interactive --strict prompt_chain tests"
+lint-typing = "mypy --install-types --non-interactive --strict prompt_chain"
 lint-style = [
     { cmd = "ruff check --fix ." },
 ]
