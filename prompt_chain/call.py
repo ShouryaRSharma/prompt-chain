@@ -44,7 +44,7 @@ def extract_sentences(content: str) -> list[str]:
         }
         Your response schema should always be a json in the following format:
         {
-            "sentences": [list of sentences]
+            "result": [list of sentences]
         }
         """,
         user_prompt=SentenceExtractionPrompt(content=content),
