@@ -1,0 +1,56 @@
+[tool.poetry]
+name = "prompt-chain"
+version = "0.1.0"
+description = ""
+authors = ["Shourya Sharma"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.12"
+requests = "^2.32.3"
+pydantic = "^2.8.2"
+
+[tool.poetry.group.test.dependencies]
+coverage = { version = "^7.3.2", extras = ["toml"] }
+pytest = "^7.4.3"
+
+[tool.poetry.group.lint.dependencies]
+ruff = "^0.1.7"
+mypy = "^1.7.1"
+pre-commit = "^3.8.0"
+
+[tool.poetry.group.dev.dependencies]
+poethepoet = "^0.26.1"
+
+[tool.poe.tasks]
+test = "pytest"
+test-cov = [
+    { cmd = "coverage run -m pytest tests -x -s --capture=tee-sys -v --durations=10" },
+    { cmd = "coverage combine" },
+    { cmd = "coverage xml" },
+    { cmd = "coverage html" },
+]
+
+lint-typing = "mypy --install-types --non-interactive --strict prompt_chain tests"
+lint-style = [
+    { cmd = "ruff check --fix ." },
+]
+lint-fmt = [
+    { cmd = "ruff format ." },
+    "lint-style",
+]
+lint-all = ["lint-fmt", "lint-typing"]
+
+[tool.ruff]
+line-length = 100
+extend-select = ['I']
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
+[tool.mypy]
+plugins = ["pydantic.mypy"]
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
