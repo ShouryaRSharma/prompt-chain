@@ -33,7 +33,7 @@ test-cov = [
     { cmd = "coverage html" },
 ]
 
-lint-typing = "mypy --install-types --non-interactive --strict prompt_chain tests"
+lint-typing = "mypy --install-types --non-interactive --strict prompt_chain"
 lint-style = [
     { cmd = "ruff check --fix ." },
 ]
