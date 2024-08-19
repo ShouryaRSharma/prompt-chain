@@ -6,12 +6,11 @@ from pydantic import ValidationError
 from prompt_chain.prompt_lib.db_manager import DatabaseManager
 from prompt_chain.prompt_lib.exceptions import DatabaseManagerException
 from prompt_chain.prompt_lib.models import Base
-from tests.conftest import TEST_DB_URL
 
 
 @pytest.fixture(scope="function")
 def db_manager():
-    manager = DatabaseManager(TEST_DB_URL)
+    manager = DatabaseManager("sqlite:///:memory:")
     yield manager
     Base.metadata.drop_all(manager.engine)
 
