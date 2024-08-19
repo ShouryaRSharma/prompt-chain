@@ -11,14 +11,16 @@ By providing a structured way to define prompts and expected responses, it allow
 - Quickly iterate on different prompt configurations
 - Ensure consistency in LLM interactions
 - Validate inputs and outputs automatically
-- (TODO) Chain multiple LLM agents together
+- Chain multiple LLM agents together
 
 ## How It Works
 
-prompt-chain consists of two main components:
+prompt-chain consists of three main components:
 
 - API Service
 - Database Manager
+- Chain Executor
+
 
 ### Prompt Chain API Service
 
@@ -42,9 +44,20 @@ The `DatabaseManager` class handles all database operations, including:
 - Retrieving prompt models
 - Validating user inputs and LLM responses against defined schemas
 
-Here's a detailed look at its functionality:
+### Chain Executor
 
-#### Model Storage and Retrieval:
+The `ChainExecutor` class handles th execution of a chain config which runs LLM agents sequentially.
+It has the capability to
+
+- Take input data from any previous step and use it in future steps
+- Store each steps output(s) for later use
+- Schema validation on each step's input and output
+
+
+## Model and Chain Configurations
+
+
+### Model Storage and Retrieval:
 
 The prompt configs are stored in a database table `prompt_models`. The schema for this table is as follows:
 
@@ -65,11 +78,20 @@ class PromptModelTable(Base):
 The system_prompt is a string, and is built with the impression that it includes the input and output schemas that would be passed to the LLM. eg. This would be a typical system prompt:
 
 ```
-Your task is to catch any sentences with an entity name in it.
-The entity name and content you want to catch will be provided to you in the user prompt in the format {name: str, content: str}.
+You are an AI assistant specialized in detecting crimes in web articles. Your task is to determine if a crime has been committed based on the given article text.
 
-You must return a list containing all sentences that include the entity name.
-Your output schema will be: {sentences: [str]} where you are returning a list of sentences.
+Input Schema:
+{
+    "article_text": "str"
+}
+
+Output Schema:
+{
+    "crime_detected": "bool",
+    "explanation": "str"
+}
+
+Ensure your response is a valid JSON object matching the output schema.
 ```
 
 The `user_prompt` and `response` stored in the table act as JSON representations of the schema defined in the system prompt, mapping out
@@ -80,24 +102,70 @@ For the system prompt example above, they would be defined as follows.
 
 ```
 "user_prompt": {
-    "name": "str",
-    "content": "str"
+    "article_text": "str",
 }
 ```
 
 ```
 "response": {
-    "sentences": [
-      "str"
-    ]
+    "crime_detected": "bool",
+    "explanation": "str"
 }
 ```
 
-#### Schema Validation:
+### Chain Configuration
 
-By defining the schema in the table, we can then perform validation on any inputs and outputs provided / generated with
-LLMS. The `DatabaseManager` achieves this by retrieving the stored model from the table and creating a dynamic pydantic model
-to validate against. You can find more on this in the `validate_user_input` and `validate_llm_response` functions in `prompt_lib/db_manager.py`
+A chain configuration defines how multiple LLM agents work together. It includes:
+
+- Name: A unique identifier for the chain
+- Steps: An ordered list of steps, each referencing a model and defining input mappings
+- Final Output Mapping: Defines how to construct the final output of the chain
+
+Example chain configuration:
+
+```python
+chain_config = {
+    "name": "crime_detection_chain",
+    "steps": [
+        {
+            "name": "crime_detector",
+            "input_mapping": {
+                "article_text": "initial_input.article_text"
+            }
+        },
+        {
+            "name": "crime_classifier",
+            "input_mapping": {
+                "article_text": "initial_input.article_text",
+                "crime_detected": "previous_step.crime_detected"
+            }
+        },
+        {
+            "name": "crime_summarizer",
+            "input_mapping": {
+                "article_text": "initial_input.article_text",
+                "crime_type": "previous_step.crime_type"
+            }
+        }
+    ],
+    "final_output_mapping": {
+        "crime_detected": "step_0.crime_detected",
+        "crime_type": "step_1.crime_type",
+        "summary": "step_2.summary"
+    }
+}
+```
+
+### Chaining LLM Agents
+
+The chaining functionality allows you to create complex AI workflows by connecting multiple LLM agents.
+Here's how it works:
+
+1. Each step in the chain corresponds to a single LLM agent (model).
+2. The input for each step can come from the initial input to the chain or the output of any specific previous step
+3. The Chain Executor handles the flow of data between steps, ensuring each model gets the inputs it needs.
+4. After all steps are executed, the final output is constructed based on the final_output_mapping.
+
 
 ## System Architecture
 
