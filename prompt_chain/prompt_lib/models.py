@@ -102,6 +102,11 @@ class ModelInput(BaseModel):
     response_schema: dict[str, Any] = Field(..., description="The schema for model responses")
 
 
+class OpenAIRequest(BaseModel):
+    name: str
+    user_input: dict[str, Any]
+
+
 # Example usage
 if __name__ == "__main__":
     schema = {

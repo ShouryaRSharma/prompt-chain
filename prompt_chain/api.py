@@ -1,9 +1,12 @@
+import json
+
 import uvicorn
-from fastapi import Body, FastAPI
+from fastapi import Body, FastAPI, HTTPException
+from requests import RequestException
 
 from prompt_chain.dependencies import DependencyManager
 from prompt_chain.prompt_lib.exceptions import DatabaseManagerException
-from prompt_chain.prompt_lib.models import ModelInput, PromptModel
+from prompt_chain.prompt_lib.models import ModelInput, OpenAIRequest, PromptModel
 
 manager = DependencyManager()
 app = FastAPI()
@@ -78,6 +81,51 @@ async def create_model(model_input: ModelInput = Body(...)) -> dict[str, str]:
             return {"message": "Model created successfully"}
     except DatabaseManagerException as e:
         return {"message": f"Error: {str(e)}"}
+
+
+@app.post("/call_openai")
+async def call_openai(request: OpenAIRequest) -> dict[str, str]:
+    """
+    Call the OpenAI API with the specified model and dynamic user input.
+
+    Args:
+        request (OpenAIRequest): Contains model_name and user_input.
+
+    Returns:
+        dict: The response from the OpenAI API if it meets the response schema for the model.
+    """
+    try:
+        model = manager.db_manager.get_prompt_model(request.name)
+        if not model:
+            raise HTTPException(status_code=404, detail=f"No model found with name: {request.name}")
+
+        try:
+            manager.db_manager.validate_user_input(request.name, request.user_input)
+        except ValueError as e:
+            raise HTTPException(status_code=422, detail=str(e))
+
+        headers = {
+            "Authorization": f"Bearer {manager.openai_api_key}",
+            "Content-Type": "application/json",
+        }
+        data = {
+            "model": "gpt-3.5-turbo",
+            "messages": [
+                {"role": "system", "content": model.system_prompt},
+                {"role": "user", "content": json.dumps(request.user_input)},
+            ],
+        }
+
+        response = manager.web_client.post(
+            "https://api.openai.com/v1/chat/completions", headers=headers, json=data
+        )
+        shaped_response = response["choices"][0]["message"]["content"]
+
+        manager.db_manager.validate_llm_response(request.name, shaped_response)
+        return {"response": shaped_response}
+
+    except (ValueError, RequestException) as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 def run() -> None:

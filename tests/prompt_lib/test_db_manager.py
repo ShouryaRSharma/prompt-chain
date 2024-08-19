@@ -3,6 +3,7 @@ import json
 import pytest
 from pydantic import ValidationError
 
+from prompt_chain.config import DB_URL
 from prompt_chain.prompt_lib.db_manager import DatabaseManager
 from prompt_chain.prompt_lib.exceptions import DatabaseManagerException
 from prompt_chain.prompt_lib.models import Base
@@ -10,7 +11,7 @@ from prompt_chain.prompt_lib.models import Base
 
 @pytest.fixture(scope="function")
 def db_manager():
-    manager = DatabaseManager("sqlite:///:memory:")
+    manager = DatabaseManager(DB_URL)
     yield manager
     Base.metadata.drop_all(manager.engine)
 
