@@ -137,6 +137,53 @@ async def call_openai(request: OpenAIRequest) -> dict[str, str]:
 
 @app.post("/create_chain")
 async def create_chain(chain_config: ChainConfig = Body(...)) -> dict[str, str]:
+    """
+    Create a new chain configuration.
+
+    Args:
+        chain_config (ChainConfig): The configuration for the new chain.
+
+    Returns:
+        dict: A message indicating whether the chain was created successfully.
+
+    Example:
+        Request body:
+        {
+            "name": "sentiment_analysis_chain",
+            "steps": [
+                {
+                    "name": "text_preprocessor",
+                    "input_mapping": {
+                        "text": "initial_input.article"
+                    }
+                },
+                {
+                    "name": "sentiment_analyzer",
+                    "input_mapping": {
+                        "processed_text": "previous_step.cleaned_text"
+                    }
+                }
+            ],
+            "final_output_mapping": {
+                "original_text": "initial_input.article",
+                "sentiment": "step_1.sentiment_score"
+            }
+        }
+
+        Response:
+        {
+            "message": "Chain created successfully"
+        }
+
+    Note:
+        - The "name" field should be unique for each chain.
+        - Each step in the "steps" array should correspond to an existing model in the system.
+        - The "input_mapping" for each step defines how inputs are sourced:
+          - "initial_input.X" refers to the input provided when executing the chain.
+          - "previous_step.X" refers to an output from the immediately preceding step.
+          - "step_N.X" refers to an output from the Nth step (0-indexed).
+        - The "final_output_mapping" defines how the chain's final output is constructed from the results of its steps.
+    """
     try:
         success = manager.db_manager.add_chain_config(chain_config)
         if success:
@@ -172,6 +219,28 @@ async def execute_chain(request: ChainExecutionRequest) -> dict[str, Any]:
 
     Returns:
         dict: The result of executing the chain.
+
+    Example:
+        Request body:
+        {
+            "chain_name": "sentiment_analysis_chain",
+            "initial_input": {
+                "article": "The new product launch was a great success. Customer feedback has been overwhelmingly positive, with many praising the innovative features and user-friendly design."
+            }
+        }
+
+        Response:
+        {
+            "result": {
+                "original_text": "The new product launch was a great success. Customer feedback has been overwhelmingly positive, with many praising the innovative features and user-friendly design.",
+                "sentiment": 0.8
+            }
+        }
+
+    Note:
+        The structure of the initial_input and the result will depend on how your specific chain is configured.
+        The example above assumes a sentiment analysis chain that takes an article as input and
+        returns the original text along with a sentiment score.
     """
     try:
         chain_config = manager.db_manager.get_chain_config(request.chain_name)

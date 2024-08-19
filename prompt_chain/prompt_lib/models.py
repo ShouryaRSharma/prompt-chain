@@ -42,19 +42,31 @@ class OpenAIRequest(BaseModel):
 
 
 class ChainExecutionRequest(BaseModel):
-    chain_name: str
-    initial_input: dict[str, Any]
+    chain_name: str = Field(..., description="The name of the chain configuration to execute")
+    initial_input: dict[str, Any] = Field(
+        ..., description="The initial input data to be provided to the chain"
+    )
 
 
 class ChainStep(BaseModel):
-    name: str
-    input_mapping: dict[str, str]
+    name: str = Field(
+        ..., description="The name of the model to be used for this step in the chain"
+    )
+    input_mapping: dict[str, str] = Field(
+        ...,
+        description="A mapping of this step's input fields to data sources. Can reference 'initial_input' or outputs from previous steps.",
+    )
 
 
 class ChainConfig(BaseModel):
-    name: str
-    steps: list[ChainStep]
-    final_output_mapping: dict[str, str]
+    name: str = Field(..., description="A unique identifier for this chain configuration")
+    steps: list[ChainStep] = Field(
+        ..., description="An ordered list of steps that define the chain's execution"
+    )
+    final_output_mapping: dict[str, str] = Field(
+        ...,
+        description="A mapping that defines how to construct the final output of the chain from the results of its steps",
+    )
 
 
 class ChainConfigTable(Base):
