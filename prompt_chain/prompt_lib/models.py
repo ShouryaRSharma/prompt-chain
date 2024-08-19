@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 from datetime import datetime
 from typing import Any
 
@@ -22,6 +23,17 @@ class PromptModelTable(Base):
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
+
+
+@dataclass
+class PromptModel:
+    id: int
+    name: str
+    system_prompt: str
+    user_prompt: dict[str, Any]
+    response: dict[str, Any]
+    created_at: str
+    updated_at: str
 
 
 class DynamicModel(BaseModel):
