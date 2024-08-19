@@ -1,7 +1,8 @@
+from dataclasses import dataclass
 from datetime import datetime
 from typing import Any
 
-from pydantic import BaseModel, create_model
+from pydantic import BaseModel, Field, create_model
 from sqlalchemy import JSON, DateTime, Integer, String
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 from sqlalchemy.sql import func
@@ -22,6 +23,17 @@ class PromptModelTable(Base):
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
+
+
+@dataclass
+class PromptModel:
+    id: int
+    name: str
+    system_prompt: str
+    user_prompt: dict[str, Any]
+    response: dict[str, Any]
+    created_at: str
+    updated_at: str
 
 
 class DynamicModel(BaseModel):
@@ -81,6 +93,18 @@ class DynamicModel(BaseModel):
             return (Any, ...)
         else:
             raise ValueError(f"Unsupported primitive type: {field_type}")
+
+
+class ModelInput(BaseModel):
+    name: str = Field(..., description="The name of the model")
+    system_prompt: str = Field(..., description="The system prompt for the model")
+    user_prompt_schema: dict[str, Any] = Field(..., description="The schema for user prompts")
+    response_schema: dict[str, Any] = Field(..., description="The schema for model responses")
+
+
+class OpenAIRequest(BaseModel):
+    name: str
+    user_input: dict[str, Any]
 
 
 # Example usage

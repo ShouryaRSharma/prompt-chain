@@ -1,19 +1,37 @@
 import json
-from typing import Any
+import logging
+from contextlib import contextmanager
+from typing import Any, Generator
 
 from pydantic import ValidationError
 from sqlalchemy import create_engine
 from sqlalchemy.exc import SQLAlchemyError
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.orm import Session, sessionmaker
 
-from prompt_chain.prompt_lib.models import Base, DynamicModel, PromptModelTable
+from prompt_chain.prompt_lib.exceptions import DatabaseManagerException
+from prompt_chain.prompt_lib.models import Base, DynamicModel, PromptModel, PromptModelTable
+
+LOGGER = logging.getLogger(__name__)
 
 
 class DatabaseManager:
     def __init__(self, db_url: str):
         self.engine = create_engine(db_url)
         Base.metadata.create_all(self.engine)
-        self.Session = sessionmaker(bind=self.engine)
+        self.session = sessionmaker(bind=self.engine)
+
+    @contextmanager
+    def session_scope(self) -> Generator[Session, None, None]:
+        session = self.session()
+        try:
+            yield session
+            session.commit()
+        except SQLAlchemyError as e:
+            session.rollback()
+            LOGGER.error(f"Database error: {str(e)}")
+            raise DatabaseManagerException(e)
+        finally:
+            session.close()
 
     def add_prompt_model(
         self,
@@ -22,8 +40,7 @@ class DatabaseManager:
         user_prompt_schema: dict[str, Any],
         response_schema: dict[str, Any],
     ) -> bool:
-        try:
-            session = self.Session()
+        with self.session_scope() as session:
             prompt_model = PromptModelTable(
                 name=name,
                 system_prompt=system_prompt,
@@ -31,23 +48,25 @@ class DatabaseManager:
                 response=response_schema,
             )
             session.add(prompt_model)
-            session.commit()
-            session.close()
-            return True
-        except SQLAlchemyError:
-            return False
+        return True
 
-    def get_prompt_model(self, name: str) -> PromptModelTable | None:
-        session = self.Session()
-        prompt_model = session.query(PromptModelTable).filter_by(name=name).first()
-        session.close()
-        return prompt_model
+    def get_all_models(self) -> list[str]:
+        with self.session_scope() as session:
+            models = session.query(PromptModelTable).all()
+            models_dict = [self.convert_to_dict(model) for model in models]
+            return [model.name for model in models_dict]
+
+    def get_prompt_model(self, model_name: str) -> PromptModel | None:
+        with self.session_scope() as session:
+            model = (
+                session.query(PromptModelTable).filter(PromptModelTable.name == model_name).first()
+            )
+            return self.convert_to_dict(model) if model else None
 
     def validate_user_input(self, model_name: str, user_input: dict[str, Any]) -> bool:
         prompt_model = self.get_prompt_model(model_name)
         if not prompt_model:
             raise ValueError(f"No model found with name: {model_name}")
-
         user_model = DynamicModel.create_from_schema(prompt_model.user_prompt)
         try:
             user_model(**user_input)
@@ -59,7 +78,6 @@ class DatabaseManager:
         prompt_model = self.get_prompt_model(model_name)
         if not prompt_model:
             raise ValueError(f"No model found with name: {model_name}")
-
         response_model = DynamicModel.create_from_schema(prompt_model.response)
         try:
             response_data = json.loads(llm_response)
@@ -67,3 +85,15 @@ class DatabaseManager:
             return True
         except ValidationError:
             raise
+
+    @staticmethod
+    def convert_to_dict(model: PromptModelTable) -> PromptModel:
+        return PromptModel(
+            id=model.id,
+            name=model.name,
+            system_prompt=model.system_prompt,
+            user_prompt=model.user_prompt,
+            response=model.response,
+            created_at=model.created_at.isoformat(),
+            updated_at=model.updated_at.isoformat(),
+        )

@@ -3,14 +3,15 @@ import json
 import pytest
 from pydantic import ValidationError
 
+from prompt_chain.config import DB_URL
 from prompt_chain.prompt_lib.db_manager import DatabaseManager
+from prompt_chain.prompt_lib.exceptions import DatabaseManagerException
 from prompt_chain.prompt_lib.models import Base
 
 
 @pytest.fixture(scope="function")
 def db_manager():
-    db_url = "sqlite:///:memory:"
-    manager = DatabaseManager(db_url)
+    manager = DatabaseManager(DB_URL)
     yield manager
     Base.metadata.drop_all(manager.engine)
 
@@ -40,13 +41,13 @@ def test_add_duplicate_prompt_model(db_manager):
         response_schema={"output": "str"},
     )
 
-    result = db_manager.add_prompt_model(
-        name="duplicate_model",
-        system_prompt="Duplicate prompt",
-        user_prompt_schema={"input": "str"},
-        response_schema={"output": "str"},
-    )
-    assert result is False
+    with pytest.raises(DatabaseManagerException):
+        db_manager.add_prompt_model(
+            name="duplicate_model",
+            system_prompt="Duplicate prompt",
+            user_prompt_schema={"input": "str"},
+            response_schema={"output": "str"},
+        )
 
 
 def test_get_nonexistent_prompt_model(db_manager):
