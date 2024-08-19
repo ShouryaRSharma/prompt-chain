@@ -147,6 +147,7 @@ async def create_chain(chain_config: ChainConfig = Body(...)) -> dict[str, str]:
         dict: A message indicating whether the chain was created successfully.
 
     Example:
+    ```
         Request body:
         {
             "name": "sentiment_analysis_chain",
@@ -174,8 +175,10 @@ async def create_chain(chain_config: ChainConfig = Body(...)) -> dict[str, str]:
         {
             "message": "Chain created successfully"
         }
+    ```
 
     Note:
+    ```
         - The "name" field should be unique for each chain.
         - Each step in the "steps" array should correspond to an existing model in the system.
         - The "input_mapping" for each step defines how inputs are sourced:
@@ -183,6 +186,7 @@ async def create_chain(chain_config: ChainConfig = Body(...)) -> dict[str, str]:
           - "previous_step.X" refers to an output from the immediately preceding step.
           - "step_N.X" refers to an output from the Nth step (0-indexed).
         - The "final_output_mapping" defines how the chain's final output is constructed from the results of its steps.
+    ```
     """
     try:
         success = manager.db_manager.add_chain_config(chain_config)
@@ -221,6 +225,7 @@ async def execute_chain(request: ChainExecutionRequest) -> dict[str, Any]:
         dict: The result of executing the chain.
 
     Example:
+    ```
         Request body:
         {
             "chain_name": "sentiment_analysis_chain",
@@ -236,6 +241,7 @@ async def execute_chain(request: ChainExecutionRequest) -> dict[str, Any]:
                 "sentiment": 0.8
             }
         }
+    ```
 
     Note:
         The structure of the initial_input and the result will depend on how your specific chain is configured.
