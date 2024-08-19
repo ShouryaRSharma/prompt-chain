@@ -9,7 +9,14 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session, sessionmaker
 
 from prompt_chain.prompt_lib.exceptions import DatabaseManagerException
-from prompt_chain.prompt_lib.models import Base, DynamicModel, PromptModel, PromptModelTable
+from prompt_chain.prompt_lib.models import (
+    Base,
+    ChainConfig,
+    ChainConfigTable,
+    DynamicModel,
+    PromptModel,
+    PromptModelTable,
+)
 
 LOGGER = logging.getLogger(__name__)
 
@@ -62,6 +69,24 @@ class DatabaseManager:
                 session.query(PromptModelTable).filter(PromptModelTable.name == model_name).first()
             )
             return self.convert_to_dict(model) if model else None
+
+    def add_chain_config(self, chain_config: ChainConfig) -> bool:
+        with self.session_scope() as session:
+            config_entry = ChainConfigTable(
+                name=chain_config.name, config=chain_config.model_dump()
+            )
+            session.add(config_entry)
+        return True
+
+    def get_chain_config(self, name: str) -> ChainConfig | None:
+        with self.session_scope() as session:
+            config = session.query(ChainConfigTable).filter(ChainConfigTable.name == name).first()
+            return ChainConfig(**config.config) if config else None
+
+    def get_all_chain_configs(self) -> list[str]:
+        with self.session_scope() as session:
+            configs = session.query(ChainConfigTable).all()
+            return [config.name for config in configs]
 
     def validate_user_input(self, model_name: str, user_input: dict[str, Any]) -> bool:
         prompt_model = self.get_prompt_model(model_name)

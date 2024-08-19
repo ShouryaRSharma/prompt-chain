@@ -36,6 +36,38 @@ class PromptModel:
     updated_at: str
 
 
+class OpenAIRequest(BaseModel):
+    name: str
+    user_input: dict[str, Any]
+
+
+class ChainExecutionRequest(BaseModel):
+    chain_name: str
+    initial_input: dict[str, Any]
+
+
+class ChainStep(BaseModel):
+    name: str
+    input_mapping: dict[str, str]
+
+
+class ChainConfig(BaseModel):
+    name: str
+    steps: list[ChainStep]
+    final_output_mapping: dict[str, str]
+
+
+class ChainConfigTable(Base):
+    __tablename__ = "chain_configs"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    name: Mapped[str] = mapped_column(String, unique=True, index=True)
+    config: Mapped[dict[str, Any]] = mapped_column(JSON)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+
 class DynamicModel(BaseModel):
     @classmethod
     def create_from_schema(
@@ -100,29 +132,3 @@ class ModelInput(BaseModel):
     system_prompt: str = Field(..., description="The system prompt for the model")
     user_prompt_schema: dict[str, Any] = Field(..., description="The schema for user prompts")
     response_schema: dict[str, Any] = Field(..., description="The schema for model responses")
-
-
-class OpenAIRequest(BaseModel):
-    name: str
-    user_input: dict[str, Any]
-
-
-# Example usage
-if __name__ == "__main__":
-    schema = {
-        "name": "str",
-        "age": "int",
-        "is_student": "bool",
-        "grades": ["float"],
-        "address": {"street": "str", "city": "str", "zip": "str"},
-        "hobbies": ["str"],
-        "metadata": {"tags": ["str"], "score": "float"},
-        "complex_list": [["int"]],
-        "empty_list": [],
-        "tuple_example": ("str", "int", "float"),
-        "empty_tuple": (),
-        "nested_dict": {"key": {"subkey": "str"}},
-        "any_type": "any",
-    }
-    DynamicPersonModel = DynamicModel.create_from_schema(schema, "DynamicPersonModel")
-    print(DynamicPersonModel.model_json_schema())

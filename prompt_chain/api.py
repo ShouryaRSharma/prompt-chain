@@ -1,4 +1,5 @@
 import json
+from typing import Any
 
 import uvicorn
 from fastapi import Body, FastAPI, HTTPException
@@ -6,7 +7,13 @@ from requests import RequestException
 
 from prompt_chain.dependencies import DependencyManager
 from prompt_chain.prompt_lib.exceptions import DatabaseManagerException
-from prompt_chain.prompt_lib.models import ModelInput, OpenAIRequest, PromptModel
+from prompt_chain.prompt_lib.models import (
+    ChainConfig,
+    ChainExecutionRequest,
+    ModelInput,
+    OpenAIRequest,
+    PromptModel,
+)
 
 manager = DependencyManager()
 app = FastAPI()
@@ -126,6 +133,57 @@ async def call_openai(request: OpenAIRequest) -> dict[str, str]:
 
     except (ValueError, RequestException) as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/create_chain")
+async def create_chain(chain_config: ChainConfig = Body(...)) -> dict[str, str]:
+    try:
+        success = manager.db_manager.add_chain_config(chain_config)
+        if success:
+            return {"message": "Chain created successfully"}
+        else:
+            return {"message": "Failed to create chain"}
+    except DatabaseManagerException as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/get_chains")
+async def get_chains() -> dict[str, list[str]]:
+    chains = manager.db_manager.get_all_chain_configs()
+    return {"chains": chains}
+
+
+@app.get("/get_chain/{chain_name}")
+async def get_chain(chain_name: str) -> ChainConfig | dict[None, None]:
+    chain = manager.db_manager.get_chain_config(chain_name)
+    if chain:
+        return chain
+    else:
+        return {}
+
+
+@app.post("/execute_chain")
+async def execute_chain(request: ChainExecutionRequest) -> dict[str, Any]:
+    """
+    Execute a chain with the specified chain name and initial input.
+
+    Args:
+        request (ChainExecutionRequest): Contains chain_name and initial_input.
+
+    Returns:
+        dict: The result of executing the chain.
+    """
+    try:
+        chain_config = manager.db_manager.get_chain_config(request.chain_name)
+        if not chain_config:
+            raise HTTPException(
+                status_code=404, detail=f"No chain found with name: {request.chain_name}"
+            )
+
+        result = manager.chain_executor.execute_chain(chain_config, request.initial_input)
+        return {"result": result}
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e))
 
 
 def run() -> None:
