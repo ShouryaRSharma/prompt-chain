@@ -150,7 +150,7 @@ def test_call_openai_invalid_input(client, mock_dependency_manager):
 def test_create_chain_success(client, mock_dependency_manager):
     mock_dependency_manager.db_manager.add_chain_config.return_value = True
     chain_config = ChainConfig(name="test_chain", steps=[], final_output_mapping={})
-    response = client.post("/create_chain", json=chain_config.dict())
+    response = client.post("/create_chain", json=chain_config.model_dump())
     assert response.status_code == 200
     assert response.json() == {"message": "Chain created successfully"}
 
@@ -158,7 +158,7 @@ def test_create_chain_success(client, mock_dependency_manager):
 def test_create_chain_failure(client, mock_dependency_manager):
     mock_dependency_manager.db_manager.add_chain_config.return_value = False
     chain_config = ChainConfig(name="test_chain", steps=[], final_output_mapping={})
-    response = client.post("/create_chain", json=chain_config.dict())
+    response = client.post("/create_chain", json=chain_config.model_dump())
     assert response.status_code == 200
     assert response.json() == {"message": "Failed to create chain"}
 
@@ -168,7 +168,7 @@ def test_create_chain_exception(client, mock_dependency_manager):
         "Test error"
     )
     chain_config = ChainConfig(name="test_chain", steps=[], final_output_mapping={})
-    response = client.post("/create_chain", json=chain_config.dict())
+    response = client.post("/create_chain", json=chain_config.model_dump())
     assert response.status_code == 500
     assert "Test error" in response.json()["detail"]
 
