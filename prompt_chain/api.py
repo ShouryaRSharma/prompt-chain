@@ -3,6 +3,7 @@ from typing import Any
 
 import uvicorn
 from fastapi import Body, FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from requests import RequestException
 
 from prompt_chain.dependencies import DependencyManager
@@ -14,8 +15,6 @@ from prompt_chain.prompt_lib.models import (
     OpenAIRequest,
     PromptModel,
 )
-from fastapi.middleware.cors import CORSMiddleware
-
 
 manager = DependencyManager()
 app = FastAPI()
@@ -26,6 +25,7 @@ app.add_middleware(
     allow_methods=["*"],  # Allows all methods
     allow_headers=["*"],  # Allows all headers
 )
+
 
 @app.get("/")
 async def root() -> dict[str, str]:
