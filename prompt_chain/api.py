@@ -1,8 +1,10 @@
 import json
+import logging
 from typing import Any
 
 import uvicorn
 from fastapi import Body, FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from requests import RequestException
 
 from prompt_chain.dependencies import DependencyManager
@@ -15,8 +17,23 @@ from prompt_chain.prompt_lib.models import (
     PromptModel,
 )
 
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    handlers=[
+        logging.StreamHandler(),
+    ],
+)
+LOGGER = logging.getLogger(__name__)
 manager = DependencyManager()
 app = FastAPI()
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:3000"],  # React app's address
+    allow_credentials=True,
+    allow_methods=["*"],  # Allows all methods
+    allow_headers=["*"],  # Allows all headers
+)
 
 
 @app.get("/")
