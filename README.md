@@ -26,15 +26,9 @@ prompt-chain consists of three main components:
 
 The API service, built with FastAPI, provides endpoints for:
 
-- Creating new prompt models
-- Retrieving existing models
-- Calling OpenAI's API with the specified model and user input
-
-Key features of the API service include:
-
-- Dynamic model creation based on user-defined schemas
-- Input validation against the defined schemas (so your user prompt matches what the LLM expects)
-- Output validation against the LLM response (so you can check your LLM isn't hallucinating)
+- Creating new prompt models and chains
+- Retrieving existing models and chains
+- Calling OpenAI's API with the specified chain and user input
 
 ### Database Manager
 
