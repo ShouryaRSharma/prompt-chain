@@ -1,4 +1,5 @@
 import json
+import logging
 from typing import Any
 
 import uvicorn
@@ -16,6 +17,14 @@ from prompt_chain.prompt_lib.models import (
     PromptModel,
 )
 
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    handlers=[
+        logging.StreamHandler(),
+    ],
+)
+LOGGER = logging.getLogger(__name__)
 manager = DependencyManager()
 app = FastAPI()
 app.add_middleware(

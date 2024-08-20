@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import ReactFlow, {
-  MiniMap,
-  Controls,
+import ReactFlow, { 
+  MiniMap, 
+  Controls, 
   Background,
   useNodesState,
   useEdgesState,
@@ -27,8 +27,10 @@ const GraphUI = () => {
   const [showAddModel, setShowAddModel] = useState(false);
   const [showAddChain, setShowAddChain] = useState(false);
   const [selectedChain, setSelectedChain] = useState('');
+  const [showChainExecutionModal, setShowChainExecutionModal] = useState(false);
   const [chainInput, setChainInput] = useState('');
   const [chainResult, setChainResult] = useState(null);
+  const [errorMessage, setErrorMessage] = useState('');
 
   useEffect(() => {
     fetchModels();
@@ -39,9 +41,9 @@ const GraphUI = () => {
     try {
       const response = await axios.get(`${API_BASE}/get_models`);
       setModels(response.data.models);
-
+      
       const modelDetails = await Promise.all(
-        response.data.models.map(modelName =>
+        response.data.models.map(modelName => 
           axios.get(`${API_BASE}/get_model/${modelName}`).then(res => res.data)
         )
       );
@@ -49,17 +51,18 @@ const GraphUI = () => {
       const modelNodes = modelDetails.map((model, index) => ({
         id: `model-${model.name}`,
         type: 'modelNode',
-        data: {
+        data: { 
           label: model.name,
           system_prompt: model.system_prompt,
           user_prompt_schema: model.user_prompt_schema,
           response_schema: model.response_schema
         },
-        position: { x: 100 + (index * 200), y: 100 + (index * 100) },
+        position: { x: 100 + (index * 200), y: 200 + (index * 200) },
       }));
       setNodes(modelNodes);
     } catch (error) {
       console.error("Error fetching models:", error);
+      setErrorMessage("Failed to fetch models. Please try again.");
     }
   };
 
@@ -69,41 +72,20 @@ const GraphUI = () => {
       setChains(response.data.chains);
     } catch (error) {
       console.error("Error fetching chains:", error);
+      setErrorMessage("Failed to fetch chains. Please try again.");
     }
   };
 
   const onConnect = useCallback((params) => setEdges((eds) => addEdge(params, eds)), [setEdges]);
 
-  const addModelNode = async (modelData) => {
-    try {
-      const response = await axios.get(`${API_BASE}/get_model/${modelData.name}`);
-      const fullModelData = response.data;
-
-      const newNode = {
-        id: `model-${fullModelData.name}`,
-        type: 'modelNode',
-        data: {
-          label: fullModelData.name,
-          system_prompt: fullModelData.system_prompt,
-          user_prompt_schema: fullModelData.user_prompt_schema,
-          response_schema: fullModelData.response_schema
-        },
-        position: { x: Math.random() * 500, y: Math.random() * 500 },
-      };
-      setNodes((nds) => nds.concat(newNode));
-    } catch (error) {
-      console.error("Error fetching new model details:", error);
-    }
-  };
-
   const handleAddModel = async (modelData) => {
     try {
       await axios.post(`${API_BASE}/create_model`, modelData);
       await fetchModels();
-      await addModelNode(modelData);
       setShowAddModel(false);
     } catch (error) {
       console.error("Error creating model:", error);
+      setErrorMessage("Failed to create model. Please try again.");
     }
   };
 
@@ -114,6 +96,7 @@ const GraphUI = () => {
       setShowAddChain(false);
     } catch (error) {
       console.error("Error creating chain:", error);
+      setErrorMessage("Failed to create chain. Please try again.");
     }
   };
 
@@ -124,10 +107,7 @@ const GraphUI = () => {
       try {
         const response = await axios.get(`${API_BASE}/get_chain/${chainName}`);
         const chainData = response.data;
-
-        // Reset node styles
-        setNodes((nds) => nds.map(node => ({ ...node, style: {} })));
-
+        
         // Create edges based on chain steps
         const newEdges = chainData.steps.map((step, index) => ({
           id: `e${index}`,
@@ -148,6 +128,7 @@ const GraphUI = () => {
         }));
       } catch (error) {
         console.error("Error fetching chain details:", error);
+        setErrorMessage("Failed to fetch chain details. Please try again.");
       }
     } else {
       // Reset edges and node styles when no chain is selected
@@ -158,23 +139,48 @@ const GraphUI = () => {
 
   const handleChainInputChange = (e) => {
     setChainInput(e.target.value);
+    setErrorMessage(''); // Clear error message when input changes
+  };
+
+  const formatJSON = () => {
+    try {
+      // First, replace newlines with \n to make it valid JSON
+      const sanitizedInput = chainInput.replace(/\n/g, "\\n");
+      const parsed = JSON.parse(sanitizedInput);
+      const formatted = JSON.stringify(parsed, null, 2);
+      setChainInput(formatted);
+      setErrorMessage(''); // Clear error message when formatting succeeds
+    } catch (error) {
+      setErrorMessage(`Invalid JSON: ${error.message}`);
+    }
   };
 
   const runChain = async () => {
     if (!selectedChain || !chainInput) {
-      alert('Please select a chain and provide input');
+      setErrorMessage('Please select a chain and provide input');
       return;
     }
 
     try {
+      let parsedInput;
+      try {
+        // Use the same sanitization as in formatJSON
+        const sanitizedInput = chainInput.replace(/\n/g, "\\n");
+        parsedInput = JSON.parse(sanitizedInput);
+      } catch (parseError) {
+        setErrorMessage(`Invalid JSON input: ${parseError.message}`);
+        return;
+      }
+
       const response = await axios.post(`${API_BASE}/execute_chain`, {
         chain_name: selectedChain,
-        initial_input: JSON.parse(chainInput)
+        initial_input: parsedInput
       });
       setChainResult(response.data.result);
+      setErrorMessage(''); // Clear error message on successful execution
     } catch (error) {
       console.error("Error running chain:", error);
-      alert('Error running chain. Please check the console for details.');
+      setErrorMessage(`Error running chain: ${error.response?.data?.detail || error.message}`);
     }
   };
 
@@ -182,22 +188,22 @@ const GraphUI = () => {
     <div className="w-full h-screen flex flex-col">
       <div className="p-4 bg-gray-100 flex justify-between items-center">
         <div>
-          <button
-            onClick={() => setShowAddModel(true)}
+          <button 
+            onClick={() => setShowAddModel(true)} 
             className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 transition mr-2"
           >
             Add Model
           </button>
-          <button
-            onClick={() => setShowAddChain(true)}
+          <button 
+            onClick={() => setShowAddChain(true)} 
             className="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600 transition"
           >
             Add Chain
           </button>
         </div>
         <div className="flex items-center">
-          <select
-            value={selectedChain}
+          <select 
+            value={selectedChain} 
             onChange={handleChainSelection}
             className="mr-2 p-2 border rounded"
           >
@@ -206,18 +212,12 @@ const GraphUI = () => {
               <option key={chain} value={chain}>{chain}</option>
             ))}
           </select>
-          <input
-            type="text"
-            value={chainInput}
-            onChange={handleChainInputChange}
-            placeholder="Chain Input (JSON)"
-            className="mr-2 p-2 border rounded"
-          />
-          <button
-            onClick={runChain}
+          <button 
+            onClick={() => setShowChainExecutionModal(true)}
             className="bg-purple-500 text-white px-4 py-2 rounded hover:bg-purple-600 transition"
+            disabled={!selectedChain}
           >
-            Run Chain
+            Execute Chain
           </button>
         </div>
       </div>
@@ -231,18 +231,9 @@ const GraphUI = () => {
           nodeTypes={nodeTypes}
         >
           <Controls />
-          <MiniMap />
           <Background variant="dots" gap={12} size={1} />
         </ReactFlow>
       </div>
-      {chainResult && (
-        <div className="p-4 bg-gray-100 border-t">
-          <h3 className="font-bold mb-2">Chain Execution Result:</h3>
-          <pre className="bg-white p-2 rounded overflow-auto max-h-40">
-            {JSON.stringify(chainResult, null, 2)}
-          </pre>
-        </div>
-      )}
       {showAddModel && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white p-6 rounded-lg shadow-xl max-w-md w-full">
@@ -254,6 +245,73 @@ const GraphUI = () => {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white p-6 rounded-lg shadow-xl max-w-md w-full">
             <AddChainForm onSubmit={handleAddChain} onCancel={() => setShowAddChain(false)} availableModels={models} />
+          </div>
+        </div>
+      )}
+      {showChainExecutionModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white p-6 rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-auto">
+            <h2 className="text-2xl font-bold mb-4">Execute Chain: {selectedChain}</h2>
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Chain Input (JSON):
+              </label>
+              <div className="flex">
+                <textarea
+                  value={chainInput}
+                  onChange={handleChainInputChange}
+                  className="flex-grow h-40 p-2 border rounded-l font-mono text-sm"
+                  placeholder="Enter your JSON input here"
+                />
+                <div className="w-10 flex flex-col">
+                  <button 
+                    onClick={formatJSON}
+                    className="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded-tr"
+                    title="Format JSON"
+                  >
+                    { }
+                  </button>
+                  <button 
+                    onClick={() => {
+                      setChainInput('');
+                      setErrorMessage('');
+                    }}
+                    className="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded-br"
+                    title="Clear"
+                  >
+                    ×
+                  </button>
+                </div>
+              </div>
+              {errorMessage && (
+                <div className="mt-2 text-red-600 text-sm">{errorMessage}</div>
+              )}
+            </div>
+            <div className="flex justify-between mb-4">
+              <button
+                onClick={() => {
+                  setShowChainExecutionModal(false);
+                  setErrorMessage('');
+                }}
+                className="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600 transition"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={runChain}
+                className="bg-purple-500 text-white px-4 py-2 rounded hover:bg-purple-600 transition"
+              >
+                Run Chain
+              </button>
+            </div>
+            {chainResult && (
+              <div>
+                <h3 className="font-bold mb-2">Chain Execution Result:</h3>
+                <pre className="bg-gray-100 p-4 rounded overflow-auto max-h-60 font-mono text-sm">
+                  {JSON.stringify(chainResult, null, 2)}
+                </pre>
+              </div>
+            )}
           </div>
         </div>
       )}
