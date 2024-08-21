@@ -2,7 +2,7 @@
 
 prompt-chain is a powerful tool for creating config-as-code LLM agents.
 It allows you to easily define the system prompt, user prompt, and response format for Large Language Models (LLMs),
-allowing you to focus on creating sophisticated LLM agents through simple configurations.
+allowing you to focus on chaining LLM tasks through simple configurations.
 
 ## Purpose
 
@@ -152,10 +152,10 @@ chain_config = {
 
 ### Chaining LLM Agents
 
-The chaining functionality allows you to create complex AI workflows by connecting multiple LLM agents.
+The chaining functionality allows you to create complex AI workflows by connecting multiple LLM prompts.
 Here's how it works:
 
-1. Each step in the chain corresponds to a single LLM agent (model).
+1. Each step in the chain corresponds to a single LLM prompt (model).
 2. The input for each step can come from the initial input to the chain or the output of any specific previous step
 3. The Chain Executor handles the flow of data between steps, ensuring each model gets the inputs it needs.
 4. After all steps are executed, the final output is constructed based on the final_output_mapping.
