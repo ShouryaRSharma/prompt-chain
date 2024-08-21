@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import ReactFlow, { 
-  MiniMap, 
   Controls, 
   Background,
   useNodesState,
   useEdgesState,
-  addEdge
+  addEdge,
+  ReactFlowProvider
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 import axios from 'axios';
@@ -19,7 +19,7 @@ const nodeTypes = {
   modelNode: ModelNode,
 };
 
-const GraphUI = () => {
+const GraphUIContent = () => {
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
   const [models, setModels] = useState([]);
@@ -54,10 +54,11 @@ const GraphUI = () => {
         data: { 
           label: model.name,
           system_prompt: model.system_prompt,
-          user_prompt_schema: model.user_prompt_schema,
-          response_schema: model.response_schema
+          user_prompt_schema: model.user_prompt,
+          response_schema: model.response,
+          expanded: false
         },
-        position: { x: 100 + (index * 200), y: 200 + (index * 200) },
+        position: { x: 100 + (index * 450), y: 200 + (index * 200) },
       }));
       setNodes(modelNodes);
     } catch (error) {
@@ -108,7 +109,6 @@ const GraphUI = () => {
         const response = await axios.get(`${API_BASE}/get_chain/${chainName}`);
         const chainData = response.data;
         
-        // Create edges based on chain steps
         const newEdges = chainData.steps.map((step, index) => ({
           id: `e${index}`,
           source: `model-${step.name}`,
@@ -119,7 +119,6 @@ const GraphUI = () => {
 
         setEdges(newEdges);
 
-        // Highlight nodes that are part of the chain
         setNodes((nds) => nds.map(node => {
           if (chainData.steps.some(step => `model-${step.name}` === node.id)) {
             return { ...node, style: { border: '2px solid #ff00ff' } };
@@ -131,7 +130,6 @@ const GraphUI = () => {
         setErrorMessage("Failed to fetch chain details. Please try again.");
       }
     } else {
-      // Reset edges and node styles when no chain is selected
       setEdges([]);
       setNodes((nds) => nds.map(node => ({ ...node, style: {} })));
     }
@@ -139,17 +137,16 @@ const GraphUI = () => {
 
   const handleChainInputChange = (e) => {
     setChainInput(e.target.value);
-    setErrorMessage(''); // Clear error message when input changes
+    setErrorMessage('');
   };
 
   const formatJSON = () => {
     try {
-      // First, replace newlines with \n to make it valid JSON
       const sanitizedInput = chainInput.replace(/\n/g, "\\n");
       const parsed = JSON.parse(sanitizedInput);
       const formatted = JSON.stringify(parsed, null, 2);
       setChainInput(formatted);
-      setErrorMessage(''); // Clear error message when formatting succeeds
+      setErrorMessage('');
     } catch (error) {
       setErrorMessage(`Invalid JSON: ${error.message}`);
     }
@@ -164,7 +161,6 @@ const GraphUI = () => {
     try {
       let parsedInput;
       try {
-        // Use the same sanitization as in formatJSON
         const sanitizedInput = chainInput.replace(/\n/g, "\\n");
         parsedInput = JSON.parse(sanitizedInput);
       } catch (parseError) {
@@ -177,12 +173,55 @@ const GraphUI = () => {
         initial_input: parsedInput
       });
       setChainResult(response.data.result);
-      setErrorMessage(''); // Clear error message on successful execution
+      setErrorMessage('');
     } catch (error) {
       console.error("Error running chain:", error);
       setErrorMessage(`Error running chain: ${error.response?.data?.detail || error.message}`);
     }
   };
+
+  const onNodeClick = useCallback((event, node) => {
+    setNodes((nds) =>
+      nds.map((n) => {
+        if (n.id === node.id) {
+          return {
+            ...n,
+            data: {
+              ...n.data,
+              expanded: !n.data.expanded,
+            },
+          };
+        }
+        return n;
+      })
+    );
+    
+    setTimeout(() => {
+      const expandedNode = nodes.find(n => n.id === node.id);
+      if (expandedNode && expandedNode.data.expanded) {
+        setNodes((nds) =>
+          nds.map((n) => {
+            if (n.id !== node.id) {
+              const dx = n.position.x - node.position.x;
+              const dy = n.position.y - node.position.y;
+              const distance = Math.sqrt(dx * dx + dy * dy);
+              if (distance < 300) {
+                const angle = Math.atan2(dy, dx);
+                return {
+                  ...n,
+                  position: {
+                    x: n.position.x + Math.cos(angle) * (300 - distance),
+                    y: n.position.y + Math.sin(angle) * (300 - distance),
+                  },
+                };
+              }
+            }
+            return n;
+          })
+        );
+      }
+    }, 300);
+  }, [nodes, setNodes]);
 
   return (
     <div className="w-full h-screen flex flex-col">
@@ -228,6 +267,7 @@ const GraphUI = () => {
           onNodesChange={onNodesChange}
           onEdgesChange={onEdgesChange}
           onConnect={onConnect}
+          onNodeClick={onNodeClick}
           nodeTypes={nodeTypes}
         >
           <Controls />
@@ -318,5 +358,11 @@ const GraphUI = () => {
     </div>
   );
 };
+
+const GraphUI = () => (
+  <ReactFlowProvider>
+    <GraphUIContent />
+  </ReactFlowProvider>
+);
 
 export default GraphUI;
