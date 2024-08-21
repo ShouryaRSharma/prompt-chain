@@ -164,3 +164,39 @@ Here's how it works:
 ## System Architecture
 
 ![System Architecture](systemarchitecture.svg)
+
+## How to Run
+
+To run the Prompt Chain application, you'll need to set up both the backend and frontend components. Here are the steps to get started:
+
+### Prerequisites
+
+- Node.js (for the frontend)
+- Poetry (for Python dependency management)
+- OpenAI API key
+
+### Backend Setup
+
+1. Ensure you have Poetry installed on your system.
+2. Set the OPENAI_API_KEY environment variable:
+
+```
+export OPENAI_API_KEY=your_openai_api_key_here
+```
+
+3. Navigate to the backend directory.
+4. Run the following command to start the backend server:
+
+```poetry run python prompt_chain/api.py```
+
+### Frontend Setup
+
+1. Navigate to the frontend directory.
+2. Install the necessary dependencies:
+
+```npm install```
+
+4. Start the frontend development server:
+
+```npm start```
+
