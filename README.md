@@ -4,6 +4,10 @@ prompt-chain is a powerful tool for creating config-as-code LLM agents.
 It allows you to easily define the system prompt, user prompt, and response format for Large Language Models (LLMs),
 allowing you to focus on chaining LLM tasks through simple configurations.
 
+![Prompt Chain](graph.png)
+
+![Chain Result](result.png)
+
 ## Purpose
 
 By providing a structured way to define prompts and expected responses, it allows developers to:
